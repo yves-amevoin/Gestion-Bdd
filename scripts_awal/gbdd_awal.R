@@ -105,7 +105,84 @@ base_pyramid <- base_pyramid %>%
   mutate(nb=ifelse(sexe=="Feminin",-nb,nb))
 
 # Visualization
+coupures_axes <- seq(-100, 120, by=5)
 ggplot(base_pyramid, aes(x=age_coupee, y=nb, fill=sexe))+
-  geom_bar(stat = "identity")+
+  geom_bar(stat = "identity",width = 1, colour="black")+
   coord_flip()+
-  labs(x="Groupe d'age", y="Effectif")
+  labs(x="Groupe d'age", y="Effectif")+
+  scale_fill_manual(values = c("pink", "blue"))+
+  scale_y_continuous(breaks = coupures_axes,
+                     labels = abs(coupures_axes))+
+  theme_bw()
+
+
+
+#Charger une base de donnee sqllite
+#MySQL
+#Oracle/SQL
+#SQLite
+#SQL Server
+#ProgeSQL
+
+library(dbplyr)
+library(dplyr)
+library(tidyverse)
+connection <- DBI::dbConnect(RSQLite::SQLite(),
+                             "./data/portal_mammals.sqlite")
+src_dbi(connection)
+surveys <- tbl(connection,"surveys")
+plots <- tbl(connection,"plots")
+species <- tbl(connection,"species")
+
+surveys %>% 
+  filter(plot_id==1) %>% 
+  collect() %>% 
+  count(species_id)
+
+ab_species <- species %>% 
+  filter(species_id=="AB") %>% 
+  collect()
+
+ab_species <- left_join(ab_species, collect(surveys), 
+                        by="species_id")
+
+
+ab_species <- left_join(ab_species, collect(plots),
+                        by="plot_id") %>% 
+  select(plot_type)
+
+ggplot(ab_species, aes(x=plot_type))+
+  geom_bar()
+
+
+# Rvest et webmining
+library(rvest)
+library(stringr)
+
+lecture <- function(i){
+  page_web <- read_html(
+    paste("https://www.expat-dakar.com/dernieres-annonces?txt=apple&page=",
+                        i,sep=""))
+
+texte <- page_web %>% 
+  html_nodes(".ad-item-price span , .ad-item-subtitle , .mb-md-3 a") %>% 
+  html_text()
+
+texte <- str_squish(texte)
+vec_nom <- seq(1, length(texte), by=3)
+vec_car <- seq(2, length(texte), by=3)
+vec_prix <- seq(3, length(texte), by=3)
+
+base_apple <- data.frame(nom=texte[vec_nom],
+                         carc=texte[vec_car],
+                         prix=texte[vec_prix])
+
+base_apple %>% 
+  mutate(prix=as.numeric(gsub("\\D","",prix)))
+}
+
+grosse_base <- purrr::map_dfr(1:10, lecture, .id="Page")
+
+
+
+
