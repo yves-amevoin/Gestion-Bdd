@@ -87,6 +87,7 @@ cas_tidy %>%
   count(resultat_test)
 
 # pyramide des ages
+
 base_pyramid <- cas_tidy %>% 
   dplyr::select(sexe, age)  
 
@@ -98,16 +99,81 @@ base_pyramid <- base_pyramid %>%
   mutate(nb = ifelse(sexe == "Feminin", -nb, nb))
 
 # Visualisation:
-coupures_axe <- seq(-100, 120, by = 5) 
+
+coupures_axe <- seq(-100, 120, by = 5)
+
+# Pyramide des ages;
 
 ggplot(base_pyramid, aes(x = age_coupee, y = nb, fill = sexe)) +
   geom_bar(stat = "identity", width = 1, colour = "black") +
   coord_flip() +
-  labs(x = "Groupes d'âge", y = "Effectif")+
-  scale_fill_manual(values = c("pink", "blue"))+
+  labs(x = "Groupes d'âge", y = "Effectif") +  
+  scale_fill_manual(values = c("pink", "blue")) +
   scale_y_continuous(breaks = coupures_axe, 
-                     labels = abs(coupures_axe))+
+                     labels = abs(coupures_axe)) +
   theme_bw()
 
-  
+# chargement de base de données sqllite.
+# MySQL
+# Oracle / SQL
+# SQL Server
+# PotgreSQL
+# SQLite
+# Hadoop / Mapreduce et consort...
+library(dbplyr)
+library(dplyr)
 
+connection <- DBI::dbConnect(RSQLite::SQLite(), 
+                             "./data/portal_mammals.sqlite")
+src_dbi(connection)
+
+surveys <- tbl(connection, "surveys")
+plots <- tbl(connection, "plots")
+species <- tbl(connection, "species")
+
+surveys %>% 
+  filter(plot_id == 1) %>% 
+  collect() %>% 
+  count(species_id)
+
+ab_species <- species %>% 
+  filter(species_id == "AB") %>% 
+  collect()
+
+ab_species <- left_join(ab_species, collect(surveys), 
+                        by = "species_id")
+ab_species <- left_join(ab_species, collect(plots), 
+                        by = "plot_id") %>% 
+  select(plot_type) 
+
+ggplot(ab_species, aes(x = plot_type)) +
+  geom_bar()
+
+# Rvest et webmining.
+library(rvest)
+library(stringr)
+
+
+lecture <- function(i){
+page_web <- read_html(
+  paste("https://www.expat-dakar.com/dernieres-annonces?txt=apple&page="           , i, sep ="")
+  )
+
+texte <- page_web %>% 
+  html_nodes(".ad-item-price span , .ad-item-subtitle , .mb-md-3 a") %>%
+  html_text()
+
+texte <- str_squish(texte)
+vect_nom <- seq(1, length(texte), by = 3)
+vect_car <- seq(2, length(texte), by = 3)
+vect_prix <- seq(3, length(texte), by = 3)
+
+base_apple <- data.frame(nom = texte[vect_nom], 
+                         carc = texte[vect_car],
+                         prix = texte[vect_prix])
+
+base_apple %>% 
+  mutate(prix = as.numeric(gsub("\\D", "", prix)))
+}
+
+grosse_base <- purrr::map_dfr(1:10, lecture, .id = "Page")
